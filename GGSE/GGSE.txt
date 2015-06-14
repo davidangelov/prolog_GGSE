@@ -1,0 +1,524 @@
+BEAM SEARCH
+
+search(Graph, [Node|Path], _) :- 
+choose([Node|Path], Graph, _),
+state_of(Node, State),
+goal_state(State), !.
+
+search(Graph, SolnPath, Beam) :-
+choose(Path, Graph, OtherPaths),
+one_step_extensions(Path, NewPaths),
+add_to_paths(NewPaths, OtherPaths, GraphPlus, Beam),
+search(GraphPlus, SolnPath, Beam).
+
+one_step_extensions([Node|Path], NewPaths) :-
+state_of(Node, State),
+cost_of(Node, PathCost),
+findall([NewNode,Node|Path],
+(state_change(State, NewState, GCost), 
+AccCost is GCost + PathCost, 
+make_node(NewState, AccCost, NewNode)), 
+NewPaths).
+
+choose(Path, [Path|OtherPaths], OtherPaths).
+
+add_to_paths(NewPaths, OtherPaths, GraphMinus, Beam) :-
+inser_in_order(NewPaths, OtherPaths, AllPaths), 
+prune(AllPaths, Beam, GraphMinus).
+
+prune([], _, []).
+prune(_, 0, []) :- 
+!.
+prune([H|T1], Beam, [H|T2]) :-
+NarrowBeam is Beam - 1,
+prune(T1, NarrowBeam, T2).
+
+inser_in_order(X, Y, Z) :-
+append(X, Y, W), order(W, Z).
+order([], []).
+order(X, [Path|Y]) :-
+choose1(Path, X, Other), order(Other, Y).
+
+choose1(Path, [[(A,B)|T]|OtherPaths], Other) :-
+choose_cheapest([[(A,B)|T]|OtherPaths], B, _, Path), select(Path, [[(A,B)|T]|OtherPaths], Other).
+
+choose_cheapest([], _, Y, Y).
+choose_cheapest([[(A,B)|T]|OtherPaths], C, _, Result) :-
+B =< C, choose_cheapest(OtherPaths, B, [(A,B)|T], Result).
+choose_cheapest([[(_,B)|_]|OtherPaths], C, Y, Result) :-
+B > C, choose_cheapest(OtherPaths, C, Y, Result).
+
+state_of((X,_), X).
+
+make_node(X, A, (X,A)).
+
+cost_of((_,X), X).
+
+goal_state((g)).
+
+state_change(X, Y, GCost) :-
+successor(X, Y, GCost).
+successor(a, b, 1).
+successor(a, c, 5).
+successor(a, d, 10).
+successor(b, e, 9).
+successor(e, g, 19).
+successor(c, g, 20).
+successor(d, f, 13).
+successor(f, g, 16).
+
+BEAM SEARCH 1
+
+search(Graph, [Node|Path], _) :- 
+choose([Node|Path], Graph, _),
+state_of(Node, State),
+goal_state(State), !.
+
+search(Graph, SolnPath, Beam) :-
+choose(Path, Graph, OtherPaths),
+one_step_extensions(Path, NewPaths),
+add_to_paths(NewPaths, OtherPaths, GraphPlus, Beam),
+search(GraphPlus, SolnPath, Beam).
+
+one_step_extensions([Node|Path], NewPaths) :-
+state_of(Node, State),
+findall([NewNode,Node|Path],
+(state_change(State, NewState),  
+make_node(NewState, NewNode)), 
+NewPaths).
+
+choose(Path, [Path|OtherPaths], OtherPaths).
+
+add_to_paths(NewPaths, OtherPaths, GraphMinus, Beam) :-
+inser_in_order(NewPaths, OtherPaths, AllPaths), 
+prune(AllPaths, Beam, GraphMinus).
+
+prune([], _, []).
+prune(_, 0, []) :- 
+!.
+prune([H|T1], Beam, [H|T2]) :-
+NarrowBeam is Beam - 1,
+prune(T1, NarrowBeam, T2).
+
+inser_in_order(X, Y, Z) :-
+append(X, Y, W), quicksort(W, Z).
+
+quicksort([], []).
+quicksort([[(A,B)|T]|OtherPaths], Result):-
+order(B, OtherPaths, Left, Right),
+quicksort(Left, L),
+quicksort(Right, R),
+append(L, [[(A,B)|T]|R], Result).
+
+order(_, [], [], []).
+order(Pivot, [[(A,B)|T]|OtherPaths], [[(A,B)|T]|Left], Right) :-
+B =< Pivot, order(Pivot, OtherPaths, Left, Right).
+order(Pivot, [[(A,B)|T]|OtherPaths], Left, [[(A,B)|T]|Right]) :-
+B > Pivot, order(Pivot, OtherPaths, Left, Right).
+
+state_of(X, X).
+
+make_node(X, X).
+
+goal_state((g,_)).
+
+state_change(X, Y) :-
+successor(X, Y).
+successor((a,0), (b,1)).
+successor((a,0), (c,5)).
+successor((a,0), (d,10)).
+successor((b,1), (e,9)).
+successor((e,9), (g,19)).
+successor((c,5), (g,20)).
+successor((d,10), (f,13)).
+successor((f,13), (g,16)).
+
+BEST FIRST
+
+maze_search([[X]], SolnPath, FGoal):-
+h(X, FGoal, Cost), search([[((X),0, Cost)]], SolnPath, FGoal).
+
+search(Graph, [Node|Path] , FGoal) :- 
+choose([Node|Path], Graph, _),
+state_of(Node, State),
+goal_state(State, FGoal), !.
+
+search(Graph, SolnPath, FGoal) :-
+choose(Path, Graph, OtherPaths),
+one_step_extensions(Path, NewPaths, FGoal),
+add_to_paths(NewPaths, OtherPaths, GraphPlus, 100),
+search(GraphPlus, SolnPath, FGoal).
+
+one_step_extensions([Node|Path], NewPaths, FGoal) :-
+state_of(Node, State),
+gcost_of(Node, GPath),
+findall([NewNode,Node|Path],
+(state_change(Rule, State, NewState, GCost, HCost, FGoal), 
+Gactual is GPath + GCost,
+FCost is Gactual + HCost, 
+make_node(Rule, NewState, Gactual, FCost, NewNode)), 
+NewPaths).
+
+choose(Path, [Path|OtherPaths], OtherPaths).
+
+add_to_paths(NewPaths, OtherPaths, GraphMinus, Beam) :-
+append(NewPaths, OtherPaths, W), quicksort(W, GraphPlus),
+prune(GraphPlus, Beam, GraphMinus).
+
+prune([], _, []).
+prune(_, 0, []) :- 
+!.
+prune([H|T1], Beam, [H|T2]) :-
+NarrowBeam is Beam - 1,
+prune(T1, NarrowBeam, T2).
+
+quicksort([], []).
+quicksort([[(A,B,F)|T]|OtherPaths], Result):-
+order(F, OtherPaths, Left, Right),
+quicksort(Left, L),
+quicksort(Right, R),
+append(L, [[(A,B,F)|T]|R], Result).
+
+order(_, [], [], []).
+order(Pivot, [[(A,B,F)|T]|OtherPaths], [[(A,B,F)|T]|Left], Right) :-
+F =< Pivot, order(Pivot, OtherPaths, Left, Right).
+order(Pivot, [[(A,B,F)|T]|OtherPaths], Left, [[(A,B,F)|T]|Right]) :-
+F > Pivot, order(Pivot, OtherPaths, Left, Right).
+
+state_of((X,_), X).
+
+make_node(_, X, A, F, (X,A,F)).
+
+gcost_of((_,X,_), X).
+
+goal_state((X),(X)).
+
+h((X,Y), (Xe,Ye), HCost) :-
+HCost is (sqrt((Xe - X)**2) + sqrt((Ye - Y)**2)).
+
+g((X,Y), (Xn, Yn), GCost) :-
+GCost is (sqrt((Xn - X)**2) + sqrt((Yn - Y)**2)).
+
+state_change(Rule, State, NewState, GCost, HCost, Goal) :- write('('), write(State), write(')'), write(', '),
+position(Rule, State, NewState), g(State, NewState, GCost), h(NewState, Goal, HCost).
+
+position(up, (X,Y), (X,Y1)) :-
+Y1 is Y + 1,
+\+ is_wall((X,Y), (X,Y1)),
+in_y_boundary(Y1).
+
+position(down, (X,Y), (X,Y1)) :-
+Y1 is Y - 1,
+\+ is_wall((X,Y), (X,Y1)),
+in_y_boundary(Y1).
+
+position(left, (X,Y), (X1,Y)) :-
+X1 is X - 1,
+\+ is_wall((X,Y), (X1,X)),
+in_x_boundary(X1).
+
+position(right, (X,Y), (X1,Y)) :-
+X1 is X + 1,
+\+ is_wall((X,Y), (X1,Y)),
+in_x_boundary(X1).
+
+in_y_boundary(Y) :-
+Y >= 1, Y =<9.
+in_x_boundary(X) :-
+X >= 1, X =<9. 
+
+is_wall((1,X), (2,X)) :- !,
+not(member(X, [1, 8])). 
+is_wall((2,X), (3,X)) :- !,
+not(member(X, [4, 9])).
+is_wall((3,X), (4,X)) :- !,
+not(member(X, [3, 5])).
+is_wall((4,X), (5,X)) :- !,
+not(member(X, [5, 7])).
+is_wall((5,X), (6,X)) :- !,
+not(member(X, [1, 4, 9])).
+is_wall((6,X), (7,X)) :- !,
+not(member(X, [5])).
+is_wall((7,X), (8,X)) :- !,
+not(member(X, [5, 2])).
+is_wall((8,X), (9,X)) :- !,
+not(member(X, [8, 6])).
+
+gap((1,X), (2,X)) :- !,
+member(X, [1, 8]). 
+gap((2,X), (3,X)) :- !,
+member(X, [4, 9]).
+gap((3,X), (4,X)) :- !,
+member(X, [3, 5]).
+gap((4,X), (5,X)) :- !,
+member(X, [5, 7]).
+gap((5,X), (6,X)) :- !,
+member(X, [1, 4, 9]).
+gap((6,X), (7,X)) :- !,
+member(X, [5]).
+gap((7,X), (8,X)) :- !,
+member(X, [5, 2]).
+gap((8,X), (9,X)) :- !,
+member(X, [8, 6]).
+
+BREADTH FIRST
+
+search(Graph, [Node|Path] ) :- 
+choose([Node|Path], Graph, _),
+state_of(Node, State),
+goal_state(State).
+
+search(Graph, SolnPath) :-
+choose(Path, Graph, OtherPaths),
+one_step_extensions(Path, NewPaths),
+add_to_paths(NewPaths, OtherPaths, GraphPlus),
+search(GraphPlus, SolnPath).
+
+one_step_extensions([Node|Path], NewPaths) :-
+state_of(Node, State),
+findall([NewNode,Node|Path],
+(state_change(Rule, State, NewState), make_node(Rule, NewState, NewNode)), 
+NewPaths).
+
+choose(Path, [Path|OtherPaths], OtherPaths).
+
+add_to_paths(NewPaths, OtherPaths, AllPaths) :-
+append(OtherPaths, NewPaths, AllPaths). 
+
+state_of(X, X).
+
+make_node(_, X, X).
+
+goal_state((g)).
+
+state_change(_, a, b).
+state_change(_, a, c).
+state_change(_, a, d).
+state_change(_, b, e).
+state_change(_, e, g).
+state_change(_, c, g).
+state_change(_, d, f).
+state_change(_, f, g).
+
+DEPTH FIRST
+
+search(Graph, [Node|Path] ) :-
+choose([Node|Path], Graph, _),
+state_of(Node, State),
+goal_state(State).
+
+search(Graph, SolnPath) :-
+choose(Path, Graph, OtherPaths),
+one_step_extensions(Path, NewPaths),
+add_to_paths(NewPaths, OtherPaths, GraphPlus),
+search(GraphPlus, SolnPath).
+
+one_step_extensions([Node|Path], NewPaths) :-
+state_of(Node, State),
+findall([NewNode,Node|Path],
+(state_change(Rule, State, NewState), make_node(Rule, NewState, NewNode)), 
+NewPaths).
+
+choose(Path, [Path|OtherPaths], OtherPaths).
+
+add_to_paths(NewPaths, OtherPaths, AllPaths) :-
+append(NewPaths, OtherPaths, AllPaths). 
+
+state_of(X, X).
+
+make_node(_, X, X).
+
+goal_state((g)).
+
+state_change(1_2, a, b).
+state_change(1_3, a, c).
+state_change(1_4, a, d).
+state_change(2_5, b, e).
+state_change(5_8, e, g).
+state_change(3_6, c, g).
+state_change(4_7, d, f).
+state_change(7_9, f, g).
+
+GGSE LITE
+
+search([Node|Path], [Node|Path] ) :- 
+state_of(Node, State),
+goal_state(State).
+
+search([Node|Path], SolnPath) :-
+state_of(Node, State),
+state_change(Rule, State, NewState),
+make_node(Rule, NewState, NewNode),
+search([NewNode,Node|Path], SolnPath).
+
+state_of(X, X).
+
+make_node(_, X, X).
+
+goal_state((g)).
+
+state_change(_, a, b).
+state_change(_, a, c).
+state_change(_, a, d).
+state_change(_, b, e).
+state_change(_, e, g).
+state_change(_, c, g).
+state_change(_, d, f).
+state_change(_, f, g).
+
+
+IDDF
+
+id_search(Paths, SolnPath, Depth) :-
+search(Paths, SolnPath, Depth).
+id_search(Paths, SolnPath, Depth) :-
+Depth1 is Depth + 1,
+id_search(Paths, SolnPath, Depth1).
+
+search(Graph, [Node|Path], _) :-
+choose([Node|Path], Graph, _),
+state_of(Node, State),
+goal_state(State).
+
+search(Graph, SolnPath, Depth) :-
+choose(Path, Graph, GraphMinus),
+length(Path, PathLength),
+PathDepth is PathLength - 1,
+PathDepth = Depth, !,
+
+search(GraphMinus, SolnPath, Depth).
+
+search(Graph, SolnPath, Depth) :-
+choose(Path, Graph, OtherPaths),
+one_step_extensions(Path, NewPaths),
+add_to_paths(NewPaths, OtherPaths, GraphPlus),
+search(GraphPlus, SolnPath, Depth).
+
+one_step_extensions([Node|Path], NewPaths) :-
+state_of(Node, State),
+findall([NewNode,Node|Path],
+(state_change(Rule, State, NewState), make_node(Rule, NewState, NewNode)), 
+NewPaths).
+
+choose(Path, [Path|OtherPaths], OtherPaths).
+
+add_to_paths(NewPaths, OtherPaths, AllPaths) :-
+append(NewPaths, OtherPaths, AllPaths). 
+
+state_of(X, X).
+
+make_node(_, X, X).
+
+goal_state((g)).
+
+state_change(1_2, a, b).
+state_change(1_3, a, c).
+state_change(1_4, a, d).
+state_change(2_5, b, e).
+state_change(5_8, e, g).
+state_change(3_6, c, g).
+state_change(4_7, d, f).
+state_change(7_9, f, g).
+
+UNIFORM COST
+
+search(Graph, [Node|Path], Goal) :- 
+choose([Node|Path], Graph, _),
+state_of(Node, State),
+goal_state(State, Goal), !.
+
+search(Graph, SolnPath, Goal) :-
+choose(Path, Graph, OtherPaths),
+one_step_extensions(Path, NewPaths),
+add_to_paths(NewPaths, OtherPaths, GraphPlus),
+search(GraphPlus, SolnPath, Goal).
+
+one_step_extensions([Node|Path], NewPaths) :-
+state_of(Node, State),
+cost_of(Node, PathCost),
+findall([NewNode,Node|Path],
+(state_change(State, NewState, GCost), 
+AccCost is GCost + PathCost, 
+make_node(NewState, AccCost, NewNode)), 
+NewPaths).
+
+choose(Path, [[(A,B)|T]|OtherPaths], Other) :-
+choose_cheapest([[(A,B)|T]|OtherPaths], B, _, Path), select(Path, [[(A,B)|T]|OtherPaths], Other).
+
+choose_cheapest([], _, Y, Y).
+choose_cheapest([[(A,B)|T]|OtherPaths], C, _, Result) :-
+B =< C, choose_cheapest(OtherPaths, B, [(A,B)|T], Result).
+choose_cheapest([[(_,B)|_]|OtherPaths], C, Y, Result) :-
+B > C, choose_cheapest(OtherPaths, C, Y, Result).
+
+add_to_paths(NewPaths, OtherPaths, AllPaths) :-
+append(OtherPaths, NewPaths, AllPaths). 
+
+state_of((X,_), X).
+
+make_node(X, A, (X,A)).
+
+cost_of((_,X), X).
+
+goal_state((X),(X)).
+
+state_change(X, Y, GCost) :-
+successor(X, Y, GCost).
+successor(a, b, 1).
+successor(a, c, 5).
+successor(a, d, 10).
+successor(b, e, 9).
+successor(e, g, 19).
+successor(c, g, 20).
+successor(d, f, 13).
+successor(f, g, 16).
+
+UNIFORM COST 1
+
+search(Graph, [Node|Path] ) :- 
+choose([Node|Path], Graph, _),
+state_of(Node, State),
+goal_state(State), !.
+
+search(Graph, SolnPath) :-
+choose(Path, Graph, OtherPaths),
+one_step_extensions(Path, NewPaths),
+add_to_paths(NewPaths, OtherPaths, GraphPlus),
+search(GraphPlus, SolnPath).
+
+one_step_extensions([Node|Path], NewPaths) :-
+state_of(Node, State),
+findall([NewNode,Node|Path],
+(state_change(State, NewState),  
+make_node(NewState, NewNode)), 
+NewPaths).
+
+choose(Path, [[(A,B)|T]|OtherPaths], Other) :-
+choose_cheapest([[(A,B)|T]|OtherPaths], B, _, Path), select(Path, [[(A,B)|T]|OtherPaths], Other).
+
+choose_cheapest([], _, Y, Y).
+choose_cheapest([[(A,B)|T]|OtherPaths], C, _, Result) :-
+B =< C, choose_cheapest(OtherPaths, B, [(A,B)|T], Result).
+choose_cheapest([[(_,B)|_]|OtherPaths], C, Y, Result) :-
+B > C, choose_cheapest(OtherPaths, C, Y, Result).
+
+add_to_paths(NewPaths, OtherPaths, AllPaths) :-
+append(OtherPaths, NewPaths, AllPaths). 
+
+state_of(X, X).
+
+make_node(X, X).
+
+goal_state((g,_)).
+
+state_change(X, Y) :-
+successor(X, Y).
+successor((a,0), (b,1)).
+successor((a,0), (c,5)).
+successor((a,0), (d,10)).
+successor((b,1), (e,9)).
+successor((e,9), (g,19)).
+successor((c,5), (g,20)).
+successor((d,10), (f,13)).
+successor((f,13), (g,16)).
+
